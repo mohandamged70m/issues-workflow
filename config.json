@@ -1,0 +1,17 @@
+{
+  "lookback_hours": 48,
+  "max_results": 10,
+  "min_stars": 500,
+  "min_forks": 50,
+  "max_age_days": 7,
+  "repo_push_max_age_months": 6,
+  "languages": ["TypeScript", "JavaScript", "Python"],
+  "labels": ["good first issue", "good-first-issue", "help wanted", "up-for-grabs", "hacktoberfest"],
+  "keywords": [
+    "nextjs", "next.js", "react",
+    "fastapi", "supabase", "postgres", "postgresql", "mongodb", "mongo",
+    "fullstack", "full-stack", "frontend", "front-end", "backend", "back-end",
+    "api", "typescript", "javascript", "python"
+  ],
+  "sort_by": "stars"
+}
