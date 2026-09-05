@@ -74,30 +74,21 @@ def gh_request(url):
         return None, {}
 
 
-def build_query(cfg, since_date):
-    # created:>YYYY-MM-DD is the only reliable recency filter for issue search
-    lang_part = " ".join([])  # built below with OR
-    langs = cfg.get("languages", [])
-    lang_q = ""
-    if langs:
-        lang_q = "(" + " OR ".join(f'language:"{l}"' for l in langs) + ")"
-
+def build_queries(cfg, since_date):
+    # Broad queries: one per label, NO language filter in search.
+    # Language + keywords are filtered in Python after fetching repo.
+    # This avoids 0-result over-constrained queries like
+    # (label A OR B) (language X OR Y) + no:assignee which GitHub often returns 0 for.
+    base = f"type:issue state:open created:>{since_date}"
     labels = cfg.get("labels", [])
-    label_q = ""
-    if labels:
-        label_q = "(" + " OR ".join(f'label:"{l}"' for l in labels) + ")"
+    if not labels:
+        return [base]
+    return [f'{base} label:"{l}"' for l in labels]
 
-    parts = [
-        "type:issue",
-        "state:open",
-        "no:assignee",
-        f"created:>{since_date}",
-    ]
-    if label_q:
-        parts.append(label_q)
-    if lang_q:
-        parts.append(lang_q)
-    return " ".join(parts)
+
+def build_query(cfg, since_date):
+    # kept for backwards compat / logging
+    return " ".join(build_queries(cfg, since_date)[:1])
 
 
 def search_issues(query):
@@ -164,8 +155,15 @@ def main():
     since_date = since_dt.strftime("%Y-%m-%d")
     print(f"Window: created > {since_date} (last {lookback_hours}h), top {max_results} by stars")
 
-    query = build_query(cfg, since_date)
-    issues = search_issues(query)
+    query_list = build_queries(cfg, since_date)
+    print(f"Running {len(query_list)} sub-queries (one per label, no language constraint)")
+    merged = {}
+    for q in query_list:
+        for it in search_issues(q):
+            merged[it.get("id")] = it
+        time.sleep(2)  # respect search rate limit (30 req/min)
+    issues = list(merged.values())
+    print(f"Merged unique issues from all labels: {len(issues)}")
 
     repo_cache = {}
     candidates = []
@@ -178,6 +176,9 @@ def main():
             continue
         gid = issue.get("id")
         if gid in seen:
+            continue
+        # prefer unassigned (was no:assignee in old query, now enforced here)
+        if issue.get("assignees") or issue.get("assignee"):
             continue
 
         created = parse_dt(issue.get("created_at", ""))
@@ -216,6 +217,13 @@ def main():
         if keywords and not matched:
             continue
 
+        repo_lang = (repo.get("language") or "")
+        allowed = {l.lower() for l in cfg.get("languages", [])}
+        # enforce stack fit: repo main language must be JS/TS/Python (case-insensitive)
+        # if repo language is unknown, allow via keyword match instead
+        if repo_lang and allowed and repo_lang.lower() not in allowed:
+            continue
+
         candidates.append({
             "id": gid,
             "number": issue.get("number"),
@@ -225,7 +233,7 @@ def main():
             "repo": full_name,
             "stars": stars,
             "forks": forks,
-            "repo_lang": repo.get("language", ""),
+            "repo_lang": repo_lang,
             "matched": matched[:5],
             "labels": [l.get("name", "") for l in issue.get("labels", [])][:5],
         })
