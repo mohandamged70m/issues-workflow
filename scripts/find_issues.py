@@ -75,15 +75,16 @@ def gh_request(url):
 
 
 def build_queries(cfg, since_date):
-    # Broad queries: one per label, NO language filter in search.
+    # Broad OR logic: one query per label + one fallback with NO label filter.
+    # Fallback ensures we still get top-10 fresh issues even when
+    # beginner labels have 0 hits in 48h window.
     # Language + keywords are filtered in Python after fetching repo.
-    # This avoids 0-result over-constrained queries like
-    # (label A OR B) (language X OR Y) + no:assignee which GitHub often returns 0 for.
     base = f"type:issue state:open created:>{since_date}"
     labels = cfg.get("labels", [])
-    if not labels:
-        return [base]
-    return [f'{base} label:"{l}"' for l in labels]
+    queries = [f'{base} label:"{l}"' for l in labels]
+    # fallback: any fresh issue (sorted created desc, filtered by stars/keywords in code)
+    queries.append(base)
+    return queries
 
 
 def build_query(cfg, since_date):

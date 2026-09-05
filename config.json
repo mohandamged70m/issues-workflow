@@ -6,7 +6,7 @@
   "max_age_days": 7,
   "repo_push_max_age_months": 6,
   "languages": ["TypeScript", "JavaScript", "Python"],
-  "labels": ["good first issue", "good-first-issue", "help wanted", "up-for-grabs", "hacktoberfest"],
+  "labels": ["good first issue", "good-first-issue", "help wanted", "up-for-grabs", "hacktoberfest", "beginner", "beginner-friendly", "first-timers-only", "documentation", "enhancement", "bug", "frontend", "backend", "fullstack"],
   "keywords": [
     "nextjs", "next.js", "react",
     "fastapi", "supabase", "postgres", "postgresql", "mongodb", "mongo",
